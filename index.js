@@ -4,6 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
+const { query } = require("express");
 const app = express();
 const port = process.env.PORT || 5000;
 // requires end
@@ -17,7 +18,6 @@ app.use(express.json());
 
 // jwt token start
 const verifyJWT = (req, res, next) => {
-  console.log(req.headers.authorization);
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     res.status(401).send({ message: "Unauthorized Access!" });
@@ -84,7 +84,17 @@ const run = async () => {
     app.get("/billing-list", verifyJWT, async (req, res) => {
       const activePage = parseInt(req.query.activePage);
       const dataPerPage = parseInt(req.query.dataPerPage);
-      const query = {};
+      const search = req.query.search;
+      let query = {};
+      if (search.length > 0) {
+        query = {
+          $or: [
+            { fullName: { $regex: search } },
+            { email: { $regex: search } },
+            { phone: { $regex: search } },
+          ],
+        };
+      }
       const options = {
         sort: { createdTime: -1 },
       };
@@ -97,6 +107,14 @@ const run = async () => {
       res.send({ result, count });
     });
     // get billing list API end
+
+    // get all bill for calculation API start
+    app.get("/billAmount", async (req, res) => {
+      const query = {};
+      const result = await billings.find(query).toArray();
+      res.send(result);
+    });
+    // get all bill for calculation API end
 
     // update billing details API start
     app.patch("/update-billing/:id", async (req, res) => {
